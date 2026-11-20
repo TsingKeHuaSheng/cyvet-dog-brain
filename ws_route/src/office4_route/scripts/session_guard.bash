@@ -7,13 +7,17 @@ if systemctl --user is-active --quiet dogroute-mapping; then
     exit 1
 fi
 
+legacy_noted=''
 for route_unit in office4-route office4-localization; do
     if systemctl --user is-active --quiet "$route_unit"; then
         route_loaded=$(systemctl --user show "$route_unit" -p Environment --value | tr ' ' '\n' | sed -n 's/^DOG_ROUTE_MAP=//p')
         if [ -z "$route_loaded" ]; then
-            # 旧方式启动（改版前）的服务不记录地图，按遗留地图处理并提示。
+            # 旧方式启动（改版前）的服务不记录地图，按遗留地图处理并提示一次。
             route_loaded="$DOG_LEGACY_MAP"
-            echo "[提示] $route_unit 是旧方式启动的（没记录地图），按 $DOG_LEGACY_MAP 处理。建议 dogroute stop 后用 dogroute locate / draw 重新启动。" >&2
+            if [ -z "$legacy_noted" ]; then
+                echo "[提示] 有服务是改版前启动的（没记录地图），按 $DOG_LEGACY_MAP 处理。建议 dogroute stop 后用 dogroute locate / draw 重开。" >&2
+                legacy_noted=1
+            fi
         fi
         if [ "$route_loaded" != "$DOG_ROUTE_MAP" ]; then
             echo "$route_unit 正在使用 $route_loaded，而当前选择是 $DOG_ROUTE_MAP。请先用 dogroute stop 关闭旧现场（或执行 dogroute use $route_loaded 切回去）。" >&2
