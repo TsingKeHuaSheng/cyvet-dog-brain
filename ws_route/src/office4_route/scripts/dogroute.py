@@ -159,7 +159,39 @@ def grid(directory, floor):
     print(f'{target}/map.yaml，地面 z={floor:g} m，分辨率 5 cm。')
 
 
-def locate(directory):
+def current_pose(timeout=3.0):
+    """当前 map→lidar 位姿 (x, y, yaw_rad)；读不到返回 None。"""
+    try:
+        import rclpy
+        from tf2_ros import Buffer, TransformListener
+        if not rclpy.ok():
+            rclpy.init(args=[])
+        node = rclpy.create_node('dogroute_pose_probe')
+        buffer = Buffer()
+        TransformListener(buffer, node)
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            rclpy.spin_once(node, timeout_sec=0.1)
+            try:
+                transform = buffer.lookup_transform('map', 'lidar', rclpy.time.Time())
+            except Exception:
+                continue
+            tr = transform.transform.translation
+            q = transform.transform.rotation
+            node.destroy_node()
+            return tr.x, tr.y, 2 * math.atan2(q.z, q.w)
+        node.destroy_node()
+    except Exception as exc:
+        print(f'（读取当前位姿失败：{exc}）', file=sys.stderr)
+    return None
+
+
+def wrap_angle(radians):
+    return (radians + math.pi) % (2 * math.pi) - math.pi
+
+
+def locate(directory, seed=None, shift=None):
+    """重定位。seed=(x,y,yaw) 直接当初始位姿；shift=(dx,dy,dyaw) 在当前结果上纠偏。"""
     from interface.srv import Relocalize, IsValid
     pcd = directory / 'map.pcd'
     if not pcd.is_file():
@@ -170,16 +202,34 @@ def locate(directory):
     if not running(LOCALIZER):
         check_no_external_slam()
         launch(LOCALIZER, directory.name, 'ws_slam', 'localizer', 'localizer_launch.py')
-    response = call('/localizer/relocalize', Relocalize, Relocalize.Request(pcd_path=str(pcd)))
+
+    request = Relocalize.Request(pcd_path=str(pcd))
+    if shift:
+        pose = current_pose()
+        if pose is None:
+            raise ValueError('读不到当前定位结果，没法做相对修正；改用 --at X Y YAW 给绝对初值。')
+        seed = (pose[0] + shift[0], pose[1] + shift[1], wrap_angle(pose[2] + shift[2]))
+        print(f'当前 x={pose[0]:+.2f} y={pose[1]:+.2f} yaw={math.degrees(pose[2]):+.1f}° → '
+              f'修正后初值 x={seed[0]:+.2f} y={seed[1]:+.2f} yaw={math.degrees(seed[2]):+.1f}°')
+    if seed:
+        request.x, request.y, request.yaw = (float(v) for v in seed)
+        print(f'用指定初值重定位：x={seed[0]:+.2f} m  y={seed[1]:+.2f} m  yaw={math.degrees(seed[2]):+.1f}°')
+
+    response = call('/localizer/relocalize', Relocalize, request)
     if not response.success:
         raise ValueError(response.message)
     deadline = time.monotonic() + 35
     while time.monotonic() < deadline:
         if call('/localizer/relocalize_check', IsValid, IsValid.Request(code=0)).valid:
             print(f'{directory.name} 定位已匹配。请在 RViz 核对固定物体和机身朝向。')
+            pose = current_pose()
+            if pose:
+                print(f'匹配结果 map→lidar：x={pose[0]:+.2f} m  y={pose[1]:+.2f} m  '
+                      f'yaw={math.degrees(pose[2]):+.1f}°')
+                print('若这组数字和你预期差得远，带 --shift/--at 再定位一次即可，不用重启服务。')
             return
         time.sleep(.4)
-    raise ValueError('定位还在等待匹配。核对是否回到了本图起点、朝向是否一致，再执行 dogroute locate。')
+    raise ValueError('定位还在等待匹配。检查狗是否在本图范围内、朝向是否离谱，再试一次。')
 
 
 def check_localizer(name):
@@ -213,7 +263,12 @@ def main():
     subs.add_parser('env', help='打印当前地图的环境变量（可 eval 使用）')
     subs.add_parser('grid', help='生成二维栅格').add_argument('--floor-z', type=float, metavar='METRES')
     subs.add_parser('walk', help='执行已保存路线').add_argument('--resume', action='store_true')
-    for action, text in [('mapping','开始新建图'), ('save','保存并结束本次建图'), ('locate','在原起点定位'),
+    locate_parser = subs.add_parser('locate', help='定位；可指定初值或用偏移纠偏')
+    locate_parser.add_argument('--at', nargs=3, type=float, metavar=('X', 'Y', 'YAW'),
+                               help='绝对初值：地图坐标 米 米 弧度（默认 0 0 0 = 建图起点）')
+    locate_parser.add_argument('--shift', nargs=3, type=float, metavar=('DX', 'DY', 'DYAW'),
+                               help='在当前定位结果上叠加偏移后重新定位（米 米 弧度）')
+    for action, text in [('mapping','开始新建图'), ('save','保存并结束本次建图'),
                          ('draw','打开栅格和画线界面'), ('stand','取权并进入零速 Walking'),
                          ('release','交还 SDK 控制权'), ('stop','关闭画线和定位'), ('status','查看选择和运行状态')]:
         subs.add_parser(action, help=text)
@@ -229,6 +284,11 @@ def main():
                       ('routes/hand_drawn.json', 'routes/hand_drawn.json'))]
             print('地图目录：', directory)
             print('文件情况：', '  '.join(f'{tag}={"有" if ok else "缺"}' for tag, ok in marks))
+        if running(LOCALIZER):
+            pose = current_pose(timeout=3.0)
+            if pose:
+                print(f'当前定位 map→lidar：x={pose[0]:+.2f} m  y={pose[1]:+.2f} m  '
+                      f'yaw={math.degrees(pose[2]):+.1f}°')
         for unit in (MAPPER, LOCALIZER, DRAW):
             if running(unit):
                 print(f'{unit:<20} 运行中，地图={unit_map(unit)}' +
@@ -282,8 +342,10 @@ def main():
             os.execv('/bin/bash', ['bash', str(SCRIPTS / 'walk.bash')] + (['--resume'] if args.resume else []))
         if args.cmd == 'grid':
             grid(directory, args.floor_z)
+        elif args.cmd == 'locate':
+            locate(directory, args.at, args.shift)
         else:
-            {'mapping': mapping, 'save': save, 'locate': locate, 'draw': draw}[args.cmd](directory)
+            {'mapping': mapping, 'save': save, 'draw': draw}[args.cmd](directory)
 
 
 if __name__ == '__main__':
