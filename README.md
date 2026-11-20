@@ -6,6 +6,8 @@ UniUbi 灵猫 Cyvet 四足机器人（型号 CYVET-CREATOR）二次开发代码�
 > 目标：建图 → 定位 → 画线/规划 → 循线行走（A 点到 B 点）。
 > 本仓库只放**我们自己写的代码、必要配置和文档**，不放第三方源码、虚拟环境、编译产物和模型权重。
 > 仓库根目录就是 Jetson 上的 `/home/nvidia`，所以下面所有路径都能和机器上的实际路径一一对应。
+>
+> 远端：`git@github.com:TsingKeHuaSheng/cyvet-dog-brain.git`（Private）
 
 ---
 
@@ -117,8 +119,8 @@ source ~/env_uniubi.sh      # 设 UNIUBI_SDK_ROOT / LD_LIBRARY_PATH / venv / IFA
 ```bash
 # 1) 克隆到「家目录」——注意是 ~/，不是 ~/xxx，路径必须和文档一致
 cd ~
-git clone git@github.com:<你>/cyvet-dog-brain.git .    # 或 https 形式
-#   若 ~ 下已有同名文件会冲突，先备份再克隆
+git clone git@github.com:TsingKeHuaSheng/cyvet-dog-brain.git .
+#   若 ~ 下已有同名文件会冲突：先把冲突项挪走，或克隆到临时目录再 rsync 覆盖
 
 # 2) 补齐三方依赖（见 §3 表格）——至少要有 uniubi_ros2，否则 ros2_ws/src 下是断链
 git clone https://github.com/uniubi-ai/uniubi_ros2.git ~/uniubi_ros2
