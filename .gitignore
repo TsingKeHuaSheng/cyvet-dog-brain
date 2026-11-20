@@ -67,6 +67,10 @@
 
 # ---------- §3 在放行目录内再剔除 ----------
 
+# 每张图的二维栅格是派生数据（dogroute grid 生成，含随机命名的缓存目录），由各机器自己生成
+/robot_ws/maps/*/nav2/
+/robot_ws/maps/*/.dogroute-grids/
+
 # 三方整包：体积大、有上游仓库，走 README §3 的克隆说明
 /ws_livox/src/livox_ros_driver2/
 /robot_ws/Livox-SDK2/
