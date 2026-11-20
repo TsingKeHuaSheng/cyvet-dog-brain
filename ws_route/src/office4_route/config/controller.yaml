@@ -1,0 +1,87 @@
+/office4_height_filter:
+  ros__parameters:
+    # Estimated floor elevation for this flat site, in its map frame (metres).
+    floor_z: -0.52
+/line_route/controller_server:
+  ros__parameters:
+    controller_frequency: 10.0
+    # Hold zero and retry a transient controller failure while ICP catches up.
+    failure_tolerance: 0.8
+    odom_topic: /office4_drive/base_odom
+    progress_checker_plugin: progress_checker
+    progress_checker:
+      plugin: nav2_controller::PoseProgressChecker
+      required_movement_angle: 0.05
+      required_movement_radius: 0.06
+      movement_time_allowance: 25.0
+    goal_checker_plugins: [goal_checker]
+    goal_checker:
+      plugin: nav2_controller::SimpleGoalChecker
+      xy_goal_tolerance: 0.08
+      yaw_goal_tolerance: 0.25
+    controller_plugins: [FollowPath]
+    FollowPath:
+      plugin: nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+      # Straight-line target and walk.py forward command limit, in m/s.
+      desired_linear_vel: 0.30
+      lookahead_dist: 0.24
+      use_velocity_scaled_lookahead_dist: false
+      use_rotate_to_heading: true
+      rotate_to_heading_angular_vel: 0.20
+      rotate_to_heading_min_angle: 0.5
+      max_angular_accel: 0.45
+      use_regulated_linear_velocity_scaling: true
+      regulated_linear_scaling_min_speed: 0.025
+      min_approach_linear_velocity: 0.025
+      approach_velocity_scaling_dist: 0.32
+      max_robot_pose_search_dist: 0.45
+      allow_reversing: false
+      use_collision_detection: false
+      use_cost_regulated_linear_velocity_scaling: false
+      transform_tolerance: 0.30
+/line_route/local_costmap/local_costmap:
+  ros__parameters:
+    global_frame: lidar
+    robot_base_frame: base_link
+    rolling_window: true
+    width: 8
+    height: 8
+    resolution: 0.05
+    update_frequency: 6.0
+    publish_frequency: 2.0
+    transform_tolerance: 0.5
+    track_unknown_space: false
+    footprint: '[[0.315,0.225],[0.315,-0.225],[-0.315,-0.225],[-0.315,0.225]]'
+    footprint_padding: 0.02
+    plugins: [live, inflation]
+    live:
+      plugin: nav2_costmap_2d::ObstacleLayer
+      observation_sources: rays obstacles
+      rays:
+        topic: /line_route/clearing_rays
+        data_type: PointCloud2
+        marking: false
+        clearing: true
+        raytrace_max_range: 4.5
+        min_obstacle_height: -3.0
+        max_obstacle_height: 3.0
+      obstacles:
+        topic: /line_route/obstacles
+        data_type: PointCloud2
+        marking: true
+        clearing: false
+        obstacle_max_range: 4.0
+        min_obstacle_height: -3.0
+        max_obstacle_height: 3.0
+    inflation:
+      plugin: nav2_costmap_2d::InflationLayer
+      inflation_radius: 0.52
+      cost_scaling_factor: 4.0
+/office4_obstacle_gate:
+  ros__parameters:
+    nose_from_center: 0.315
+    front_length: 0.55
+    front_half_width: 0.30
+    route_half_width: 0.30
+    stop_points: 3
+    source_timeout: 0.9

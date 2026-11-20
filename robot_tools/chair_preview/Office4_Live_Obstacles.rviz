@@ -1,0 +1,44 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ''
+  Enabled: true
+  Global Options:
+    Fixed Frame: chair_view
+    Background Color: 45; 50; 55
+    Frame Rate: 10
+  Displays:
+    - Class: rviz_default_plugins/Map
+      Name: Live obstacle cells
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /chair_preview/costmap
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
+      Alpha: 1
+      Color Scheme: map
+      Draw Behind: true
+    - Class: rviz_default_plugins/Axes
+      Name: LiDAR (red X)
+      Reference Frame: livox_frame
+      Length: 0.4
+      Radius: 0.035
+      Enabled: true
+      Value: true
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Views:
+    Current:
+      Class: rviz_default_plugins/TopDownOrtho
+      Scale: 85
+      X: 0
+      Y: 0
+      Angle: 1.5707963
+      Target Frame: chair_view
+Window Geometry:
+  Width: 1100
+  Height: 740

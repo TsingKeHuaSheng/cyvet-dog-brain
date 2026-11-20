@@ -1,0 +1,85 @@
+{
+  "retrieved_date": "2026-11-17",
+  "selection": {
+    "source_frame": "BASE_LINK",
+    "proposed_navigation_frame": "base_link",
+    "origin": "Use the official model BASE_LINK origin unchanged; do not move it to COM or a whole-robot bounding-box center.",
+    "status": "Applied to the Jetson localizer and Office4 navigation."
+  },
+  "root_joint_origins_m": {
+    "FL_ABAD_JOINT": [
+      0.144,
+      0.064225,
+      -2.0143e-05
+    ],
+    "FR_ABAD_JOINT": [
+      0.144,
+      -0.064181,
+      -2.0143e-05
+    ],
+    "RL_ABAD_JOINT": [
+      -0.144,
+      0.064225,
+      0.0
+    ],
+    "RR_ABAD_JOINT": [
+      -0.144,
+      -0.064181,
+      0.0
+    ]
+  },
+  "root_joint_mean_m": [
+    0.0,
+    2.2000000000001185e-05,
+    -1.00715e-05
+  ],
+  "base_link_inertial_com_m": [
+    0.01000403,
+    0.0033084,
+    0.00460078
+  ],
+  "simulation_imu_site": {
+    "name": "imu",
+    "pos": "0 0 0",
+    "rgba": "0 1 0 1",
+    "size": "0.02",
+    "group": "5"
+  },
+  "hardware_imu_mount_and_attitude_reference": "Not established by simulation IMU site; hardware documentation and validation required.",
+  "lidar_mount_extrinsic": {
+    "axes": "x forward, y left, z up; translations expressed along the aligned sensor and body axes",
+    "mount_center_to_base_link_m": [
+      -0.27,
+      0.0,
+      -0.025
+    ],
+    "mount_center_to_body_imu_m": [
+      0.011,
+      0.02329,
+      0.00288
+    ],
+    "base_link_rpy_in_body_rad": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "orientation_basis": "Same-axis installation assumed; angular alignment has not been measured."
+  },
+  "sources": {
+    "urdf": "https://github.com/uniubi-ai/uniubi_robot_description/blob/main/robots/cyvet/urdf/cyvet.urdf",
+    "mjcf": "https://github.com/uniubi-ai/uniubi_robot_description/blob/main/robots/cyvet/xml/cyvet.xml",
+    "imu_protocol": "https://github.com/uniubi-ai/uniubi_robot_msgs/blob/main/idl/MotionObserved.idl",
+    "manufacturer_developer_entry": "https://www.uniubi.com/developer/embodied",
+    "mid360s_manual": "https://terra-1-g.djicdn.com/65c028cd298f4669a7f0e40e50ba1131/Mid-360S/UM/20260601/Livox_Mid-360s_User_Manual_zh-cn.pdf"
+  },
+  "measurement_date": "2026-11-19",
+  "assembled_robot_m": {
+    "length": 0.63,
+    "width": 0.45,
+    "standing_height": 0.69,
+    "sitting_height": 0.44,
+    "mount_center_height_standing": 0.43,
+    "mount_center_height_sitting": 0.18,
+    "footprint_model": "Rectangle centered on base_link. Individual front, rear, left and right overhangs and walking envelope have not been measured."
+  }
+}

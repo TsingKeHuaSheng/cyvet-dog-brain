@@ -1,0 +1,10 @@
+# 带箱灵猫站立时整机外廓，单位 m。水平外廓按 base_link 位于矩形中心估算。
+length: 0.63
+width: 0.45
+height: 0.69
+# 两个余量均相对 height 计算。
+min_clearance_margin: 0.05
+preferred_clearance_margin: 0.10
+# 当前室内预览的地形高差阈值，非硬件越障能力标定。
+step_max: 0.10
+base_frame: base_link

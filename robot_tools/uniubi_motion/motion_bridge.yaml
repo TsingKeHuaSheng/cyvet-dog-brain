@@ -1,0 +1,42 @@
+# uniubi_motion_bridge 配置 - 帧/话题隔离版
+# 基于默认 config 修改: 导航的 odom->base_link 必须由 SLAM (tf_bridge) 提供,
+# 狗腿里程计通过 dog_* 前缀隔离, 避免与 /odom + odom->base_link TF 冲突.
+/**:
+  ros__parameters:
+    sensor_observed_source: sensor_observed
+    cere_motion_topic: rt/cere/motionState
+    robot_service_name: robotServer
+    event_topic: /robotServer/Event
+    device_id: "E03C1CBAAC40A101"
+    lease_ms: 60000
+    auto_connect: true
+    cmd_vel_topic: cmd_vel
+    cmd_vel_timeout_ms: 500
+    cmd_vel_rate_hz: 30.0
+    motion_status_topic: motion/status
+    motion_status_rate_hz: 10.0
+    odom_topic: /dog/odom
+    frame_prefix: ""
+    odom_frame_id: dog_odom
+    base_frame_id: dog_base
+    publish_joint_states: true
+    joint_states_topic: joint_states
+    # MAX fallback used only when getMotorLayout is unavailable. Other models must override it.
+    fallback_limb_sizes: [3, 3, 3, 3]
+    fallback_joint_names:
+      - leftFrontLeg.hip
+      - leftFrontLeg.thigh
+      - leftFrontLeg.calf
+      - rightFrontLeg.hip
+      - rightFrontLeg.thigh
+      - rightFrontLeg.calf
+      - leftRearLeg.hip
+      - leftRearLeg.thigh
+      - leftRearLeg.calf
+      - rightRearLeg.hip
+      - rightRearLeg.thigh
+      - rightRearLeg.calf
+    imu_topic: imu/data
+    imu_frame_id: dog_imu
+    battery_topic: battery_state
+    battery_publish_rate_hz: 1.0

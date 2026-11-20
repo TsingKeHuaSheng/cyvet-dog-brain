@@ -1,0 +1,125 @@
+==================================================================
+MID-360S acceptance  |  2026-11-12T12:50:31+08:00
+==================================================================
+launch : ros2 launch livox_ros_driver2 msg_MID360s_launch.py
+config : /home/nvidia/ws_livox/install/livox_ros_driver2/share/livox_ros_driver2/config/MID360s_config.json
+  block        : ['Mid360s']
+  host_ip      : ['192.168.1.50']
+  host ports   : {'cmd_data_port': 56101, 'push_msg_port': 56201, 'point_data_port': 56301, 'imu_data_port': 56401, 'log_data_port': 56501}
+  lidar ip     : ['192.168.1.194']
+
+----- baseline counters -----
+----- start driver (detached) -----
+
+----- process -----
+13922 /home/nvidia/ws_livox/install/livox_ros_driver2/lib/livox_ros_driver2/livox_ros_driver2_node --ros-args -r __node:=livox_lidar_publisher --params-file /tmp/launch_params_h50si_p_ --params-file /tmp/launch_params_sqm6uqbv --params-file /tmp/launch_params_mw4cvnqg --params-file /tmp/launch_params_elyz26md --params-file /tmp/launch_params_q8j55sex --params-file /tmp/launch_params_jter_k8c --params-file /tmp/launch_params_95soyo_u --params-file /tmp/launch_params_uv5ni4vz --params-file /tmp/launch_params_bfvx72p4
+16509 /home/nvidia/ws_livox/install/livox_ros_driver2/lib/livox_ros_driver2/livox_ros_driver2_node --ros-args -r __node:=livox_lidar_publisher --params-file /tmp/launch_params_f91f5rg0 --params-file /tmp/launch_params_0seo0ca8 --params-file /tmp/launch_params_tdsmhdsk --params-file /tmp/launch_params_yrt_oiy0 --params-file /tmp/launch_params_rigtlt_f --params-file /tmp/launch_params_ht7qr_2q --params-file /tmp/launch_params_1d_6147p --params-file /tmp/launch_params_kf6l7mzr --params-file /tmp/launch_params_u_oxri5z
+
+----- driver log -----
+[INFO] [launch]: All log files can be found below /home/nvidia/.ros/log/2026-11-12-12-50-33-096292-nvidia-desktop-16492
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [livox_ros_driver2_node-1]: process started with pid [16509]
+[livox_ros_driver2_node-1] [INFO] [1794459033.581903121] [livox_lidar_publisher]: Livox Ros Driver2 Version: 1.2.6
+[livox_ros_driver2_node-1] [INFO] [1794459033.582961760] [livox_lidar_publisher]: Data Source is raw lidar.
+[livox_ros_driver2_node-1] [INFO] [1794459033.583006569] [livox_lidar_publisher]: Config file : /home/nvidia/ws_livox/install/livox_ros_driver2/share/livox_ros_driver2/launch_ROS2/../config/MID360s_config.json
+[livox_ros_driver2_node-1] LdsLidar *GetInstance
+[livox_ros_driver2_node-1] config lidar type: 8
+[livox_ros_driver2_node-1] successfully parse base config, counts: 1
+[livox_ros_driver2_node-1] [INFO] [1794459033.585549233] [livox_lidar_publisher]: Init lds lidar success!
+[livox_ros_driver2_node-1] GetFreeIndex key:livox_lidar_3254888640.
+[livox_ros_driver2_node-1] set pcl data type, handle: 3254888640, data type: 1
+[livox_ros_driver2_node-1] set scan pattern, handle: 3254888640, scan pattern: 0
+[livox_ros_driver2_node-1] begin to change work mode to 'Normal', handle: 3254888640
+[livox_ros_driver2_node-1] successfully set data type, handle: 3254888640, set_bit: 2
+[livox_ros_driver2_node-1] successfully set pattern mode, handle: 3254888640, set_bit: 0
+[livox_ros_driver2_node-1] successfully set lidar attitude, ip: 192.168.1.194
+[livox_ros_driver2_node-1] successfully change work mode, handle: 3254888640
+[livox_ros_driver2_node-1] successfully enable Livox Lidar imu, ip: 192.168.1.194
+[livox_ros_driver2_node-1] [INFO] [1794459036.586456157] [livox_lidar_publisher]: livox/imu publish use imu format
+[livox_ros_driver2_node-1] [INFO] [1794459036.594889219] [livox_lidar_publisher]: livox/lidar publish use livox custom format
+
+----- ros2 node list -----
+WARNING: Be aware that there are nodes in the graph that share an exact name, which can have unintended side effects.
+/livox_lidar_publisher
+/livox_lidar_publisher
+
+----- ros2 topic list -t -----
+/livox/imu [sensor_msgs/msg/Imu]
+/livox/lidar [livox_ros_driver2/msg/CustomMsg]
+/parameter_events [rcl_interfaces/msg/ParameterEvent]
+/rosout [rcl_interfaces/msg/Log]
+
+----- UDP sockets bound to lidar subnet (data ports proof) -----
+UNCONN 0      0                     192.168.1.50:56101      0.0.0.0:*    users:(("livox_ros_drive",pid=16509,fd=33))             
+UNCONN 0      0                     192.168.1.50:56201      0.0.0.0:*    users:(("livox_ros_drive",pid=16509,fd=34))             
+UNCONN 0      0                     192.168.1.50:56301      0.0.0.0:*    users:(("livox_ros_drive",pid=16509,fd=30))             
+UNCONN 0      0                     192.168.1.50:56401      0.0.0.0:*    users:(("livox_ros_drive",pid=16509,fd=31))             
+UNCONN 0      0                     192.168.1.50:44332      0.0.0.0:*    users:(("livox_ros_drive",pid=16509,fd=32))             
+UNCONN 0      0                     192.168.1.50:52745      0.0.0.0:*    users:(("livox_ros_drive",pid=13922,fd=17))             
+UNCONN 0      0                     192.168.1.50:40823      0.0.0.0:*    users:(("livox_ros_drive",pid=16509,fd=17))             
+UNCONN 0      0                     192.168.1.50:50999      0.0.0.0:*    users:(("python3",pid=12164,fd=17))                     
+UNCONN 0      0                     192.168.1.50:56000      0.0.0.0:*    users:(("livox_ros_drive",pid=16509,fd=29))             
+UNCONN 0      0                     192.168.1.50:56000      0.0.0.0:*    users:(("livox_ros_drive",pid=13922,fd=29))             
+
+----- RX delta over 5s (should be MB/s now, not 9 packets) -----
+rx_bytes 3123054 -> 68779976   delta=64118 KB over ~23s
+
+----- POINT CLOUD hz /livox/lidar (12s) -----
+average rate: 9.998
+	min: 0.099s max: 0.101s std dev: 0.00042s window: 11
+average rate: 10.000
+	min: 0.099s max: 0.101s std dev: 0.00041s window: 22
+average rate: 10.001
+	min: 0.099s max: 0.101s std dev: 0.00057s window: 33
+average rate: 10.001
+	min: 0.099s max: 0.101s std dev: 0.00060s window: 44
+average rate: 10.002
+	min: 0.099s max: 0.101s std dev: 0.00054s window: 55
+average rate: 10.001
+	min: 0.099s max: 0.102s std dev: 0.00056s window: 65
+
+----- IMU hz /livox/imu (12s) -----
+average rate: 200.087
+	min: 0.004s max: 0.006s std dev: 0.00079s window: 202
+average rate: 200.155
+	min: 0.004s max: 0.006s std dev: 0.00079s window: 403
+average rate: 200.101
+	min: 0.004s max: 0.006s std dev: 0.00078s window: 604
+average rate: 200.142
+	min: 0.004s max: 0.006s std dev: 0.00078s window: 805
+average rate: 200.101
+	min: 0.004s max: 0.006s std dev: 0.00077s window: 1006
+average rate: 200.125
+	min: 0.004s max: 0.006s std dev: 0.00077s window: 1207
+
+----- topic info -----
+Type: livox_ros_driver2/msg/CustomMsg
+Publisher count: 1
+Subscription count: 0
+Type: sensor_msgs/msg/Imu
+Publisher count: 1
+Subscription count: 0
+
+----- message content -----
+--- lidar point_num ---
+19968
+---
+--- lidar header.stamp run1 ---
+  sec: 1794459081 nanosec: 892712721 --- 
+--- lidar header.stamp run2 ---
+  sec: 1794459084 nanosec: 893127411 --- 
+LIDAR_TIMESTAMP_ADVANCING=YES
+--- imu angular_velocity ---
+x: 0.025013357400894165
+y: -0.0004771612584590912
+z: -0.006816431879997253
+---
+--- imu header.stamp run1/run2 ---
+  sec: 1794459088 nanosec: 791663984 --- 
+  sec: 1794459091 nanosec: 364622013 --- 
+IMU_TIMESTAMP_ADVANCING=YES
+
+----- stop driver -----
+SIGINT sent
+DRIVER_STOPPED
+ACCEPTANCE_DONE 2026-11-12T12:51:37+08:00

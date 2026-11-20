@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -e
+source ~/ws_livox/install/setup.bash
+source ~/ws_slam/install/setup.bash
+source ~/ws_route/install/setup.bash
+export ROS_DOMAIN_ID=0 OPENBLAS_NUM_THREADS=1
+# A terminal previously used for the SDK may still point to its domain-42 peers.
+unset CYCLONEDDS_URI RMW_IMPLEMENTATION DOG_ROUTE_MAP
+here=$(dirname "$(realpath "$0")")
+exec /usr/bin/python3 "$here/dogroute.py" "$@"

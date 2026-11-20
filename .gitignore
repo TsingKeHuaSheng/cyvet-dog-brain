@@ -1,0 +1,150 @@
+# ==============================================================================
+# 机器狗大脑 (Jetson Orin Nano / ROS 2 Humble) —— 白名单式 .gitignore
+#
+# 原理：§1 用 `/*` 忽略家目录下的一切 → §2 逐项放行 → §3/§4 剔除放行目录里的
+#       编译产物、三方整包和机密文件。git 后匹配的规则优先，顺序不能调换。
+#
+# ★ 关键规则（踩过）：父目录被忽略时，`!子目录/` 是无效的。
+#   所以放行的是「顶层目录」，再在 §3 里把目录内不要的子路径点名排除。
+#
+# 以后新增一个上传目录 = 在 §2 加一行 `!/目录名/`，然后 `git status` 复核。
+# 危险提醒：仓库根目录就是 /home/nvidia，永远不要在这里执行 `git clean -fdx`。
+# ==============================================================================
+
+# ---------- §1 总开关：忽略家目录下所有东西 ----------
+/*
+
+# ---------- §2 白名单：以下才是团队开发要的 ----------
+# 仓库自身文件
+!/.gitignore
+!/.gitattributes
+!/README.md
+
+# 文档（架构 / 排错 / 交接 / 操作手册）
+!/docs/
+!/机器狗开发与摄像头操作手册.md
+!/Office4机器狗导航研究路线与交接.md
+
+# 环境与入口脚本
+!/env_uniubi.sh
+!/env_uniubi_v100001.sh
+!/dog_console.sh
+!/dog_rtsp.sh
+!/get_dog_ip.py
+
+# 自研：ROS 2 ↔ SDK 运动桥（域 42）+ 自定义消息 + 客户端
+!/ros2_ws/
+
+# 自研：office4 业务层（drive / route / 预览 / 避障），约 1 MB
+!/robot_tools/
+
+# 自研：航点记录/回放（dog_waypoint + 4 个脚本）
+!/dog_ros2_ws/
+
+# 自研：画线循线主包（RPP 控制器插件 + walk.py + 画线编辑器）
+!/ws_route/
+
+# 自研：Nav2 参数与调试工具
+!/nav2_nav/
+
+# 自研：C++ SDK 最小示例
+!/cyvet_demo/
+
+# 雷达工作空间：只留自研小桥，三方驱动整包由 §3 排除
+!/ws_livox/
+
+# 三方源码：FAST-LIO2 全家桶（1 MB，必须同版本才能编译）
+!/ws_slam/
+
+# 数据：地图 + 诊断/交接文档（内含 Livox-SDK2 与网络备份，由 §3/§4 排除）
+!/robot_ws/
+
+# 采集到的航点 CSV
+!/dog_paths/
+
+# 三方依赖的本地定制（ws_pct 补丁与 cyvet 配置）
+!/third_party/
+
+# ---------- §3 在放行目录内再剔除 ----------
+
+# 三方整包：体积大、有上游仓库，走 README §3 的克隆说明
+/ws_livox/src/livox_ros_driver2/
+/robot_ws/Livox-SDK2/
+
+# ROS 2 / colcon 构建产物
+**/build/
+**/install/
+**/log/
+**/devel/
+**/.colcon/
+
+# Python 缓存与虚拟环境
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/.pytest_cache/
+**/*.egg-info/
+**/.venv/
+**/.venv_*/
+**/venv/
+
+# C/C++ 编译中间物
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/*.o
+**/*.obj
+**/*.so
+**/*.so.*
+**/*.a
+**/*.d
+**/compile_commands.json
+
+# 编辑器 / 操作系统杂项
+**/.vscode/
+**/.idea/
+*.swp
+*~
+**/.DS_Store
+Thumbs.db
+desktop.ini
+
+# 备份与临时文件
+*.bak
+*.bak.*
+*.orig
+*.rej
+*.tmp
+*.log
+**/.~lock*
+
+# 录包 / 崩溃转储
+*.bag
+*.mcap
+*.db3
+core
+core.*
+
+# 模型权重（视觉侧，走网盘/Release，别塞仓库）
+*.pt
+*.pth
+*.onnx
+*.engine
+*.trt
+*.h5
+*.tflite
+
+# ---------- §4 机密：绝不入库 ----------
+# NetworkManager 备份里有现场 WiFi 明文 PSK（已实测存在）
+*.nmconnection
+/robot_ws/diagnostics/backup/
+# 各类凭据
+.env
+*.env
+id_rsa*
+id_ed25519*
+*.pem
+*.p12
+*.pfx
+.gnupg/
+.ssh/

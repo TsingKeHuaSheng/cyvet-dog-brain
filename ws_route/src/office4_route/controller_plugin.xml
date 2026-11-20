@@ -1,0 +1,8 @@
+<library path="route_controller">
+  <class type="office4_route::RouteController" base_class_type="nav2_core::Controller">
+    <description>Humble regulated pure pursuit with a resumable footprint stop.</description>
+  </class>
+  <class type="office4_route::RouteProgressChecker" base_class_type="nav2_core::ProgressChecker">
+    <description>Measure position and heading progress only during active tracking.</description>
+  </class>
+</library>

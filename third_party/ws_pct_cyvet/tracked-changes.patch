@@ -1,0 +1,130 @@
+diff --git a/src/global_planner/config/requirements.txt b/src/global_planner/config/requirements.txt
+index 25e8bf1..3c5caf4 100644
+--- a/src/global_planner/config/requirements.txt
++++ b/src/global_planner/config/requirements.txt
+@@ -1,4 +1,6 @@
+ # 使用系统 Python 3.10 的独立 venv，继承 ROS2 / SciPy / OpenCV，避免 Conda ABI 混用。
+ numpy>=1.23.5,<1.25
+ cupy-cuda12x>=13,<14
+-open3d==0.19.0
++# PyPI provides the Linux ARM64 CPython 3.10 wheel in 0.18.
++open3d==0.18.0 ; sys_platform == "linux" and platform_machine == "aarch64"
++open3d==0.19.0 ; sys_platform != "linux" or platform_machine != "aarch64"
+diff --git a/src/global_planner/launch/plan.launch.py b/src/global_planner/launch/plan.launch.py
+index 7260eba..7b742d2 100644
+--- a/src/global_planner/launch/plan.launch.py
++++ b/src/global_planner/launch/plan.launch.py
+@@ -17,6 +17,7 @@ def generate_launch_description():
+         DeclareLaunchArgument('use_sim_time', default_value='false'),
+         DeclareLaunchArgument('scene', default_value='Building'),
+         # 默认双交互控件供独立测试；显式指定 frame 后，起点改为跟随 map←frame 的 TF。
++        DeclareLaunchArgument('wait_for_goal', default_value='false'),
+         DeclareLaunchArgument('start_frame_id', default_value=''),
+         DeclareLaunchArgument('tomogram_file', default_value=str(default_tomogram())),
+         # 已有地图的显示开关，不影响分层 A* 和 GPMP 算法。
+@@ -27,6 +28,7 @@ def generate_launch_description():
+         Node(package='global_planner', executable='global_planner_node', name='pct_planner', output='screen',
+              parameters=[str(share / 'config/global_planner.yaml'),
+                          {'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool),
++                          'wait_for_goal': ParameterValue(LaunchConfiguration('wait_for_goal'), value_type=bool),
+                           'scene': LaunchConfiguration('scene'),
+                           'start_frame_id': ParameterValue(LaunchConfiguration('start_frame_id'), value_type=str),
+                           'tomogram_file': LaunchConfiguration('tomogram_file'),
+diff --git a/src/global_planner/package.xml b/src/global_planner/package.xml
+index 25773e6..0ef8851 100644
+--- a/src/global_planner/package.xml
++++ b/src/global_planner/package.xml
+@@ -21,6 +21,8 @@
+   <exec_depend>interactive_markers</exec_depend>
+   <exec_depend>tf2_ros</exec_depend>
+   <exec_depend>tf2_geometry_msgs</exec_depend>
++  <exec_depend>python3-yaml</exec_depend>
++  <exec_depend>rviz2</exec_depend>
+   <exec_depend>python3-numpy</exec_depend>
+   <exec_depend>python3-scipy</exec_depend>
+   <exec_depend>python3-opencv</exec_depend>
+diff --git a/src/global_planner/ros/native_loader.py b/src/global_planner/ros/native_loader.py
+index 87a6c3f..a799a57 100644
+--- a/src/global_planner/ros/native_loader.py
++++ b/src/global_planner/ros/native_loader.py
+@@ -1,4 +1,5 @@
+ """仅定位当前 ROS2 包内的原 PCT 扩展，避免依赖 cwd 或手动 LD_LIBRARY_PATH。"""
++import ctypes
+ import importlib
+ import sys
+ from pathlib import Path
+@@ -7,5 +8,9 @@ from ament_index_python.packages import get_package_prefix
+ 
+ def load_native():
+     native_dir = Path(get_package_prefix('global_planner')) / 'lib/global_planner/native'
++    # ROS Humble also ships GTSAM 4.2 under the same SONAME as PCT 4.1.
++    # Load both package-local libraries before importing their C++ callers.
++    ctypes.CDLL(str(native_dir / "libmetis-gtsam.so"))
++    ctypes.CDLL(str(native_dir / "libgtsam.so.4"))
+     sys.path.insert(0, str(native_dir))
+     return tuple(importlib.import_module(name) for name in ('a_star', 'ele_planner', 'traj_opt'))
+diff --git a/src/global_planner/ros/planner_node.py b/src/global_planner/ros/planner_node.py
+index 14b3efd..34f02ef 100644
+--- a/src/global_planner/ros/planner_node.py
++++ b/src/global_planner/ros/planner_node.py
+@@ -46,6 +46,7 @@ class PCTPlannerNode(Node):
+         self.last_attempted_start = None
+         self.last_attempted_end = None
+         # 【RViz 接口修复】2D Goal Pose 是 PoseStamped；PCT 模式先更新全局终点，再发布 Path 给 EGO。
++        self.waiting_for_goal = self.declare_parameter('wait_for_goal', False).value
+         self.goal_orientation = Quaternion(w=1.0)
+         self.goal_sub = self.create_subscription(PoseStamped, '/move_base_simple/goal', self.goal_callback, 10)
+         from pct_planning.config import Config
+@@ -60,7 +61,10 @@ class PCTPlannerNode(Node):
+         if not self.use_tf_start:
+             self.make_marker('start_pos', self.start_pos)
+             self.start_marker_created = True
+-        self.make_marker('end_pos', self.end_pos)
++        if self.waiting_for_goal:
++            self.get_logger().info('等待 RViz 的 2D Goal Pose。')
++        else:
++            self.make_marker('end_pos', self.end_pos)
+         self.server.applyChanges()
+         self.map_view = None
+         if self.declare_parameter('publish_map', True).value:
+@@ -115,6 +119,8 @@ class PCTPlannerNode(Node):
+         try:
+             if self.use_tf_start and not self.update_start_from_tf():
+                 return
++            if self.waiting_for_goal:
++                return
+             if self.last_attempted_end is not None:
+                 end_unchanged = np.linalg.norm(self.end_pos - self.last_attempted_end) < 0.01
+                 start_unchanged = self.use_tf_start or np.linalg.norm(self.start_pos - self.last_attempted_start) < 0.01
+@@ -170,6 +176,9 @@ class PCTPlannerNode(Node):
+         # 原拖拽反馈会减去 0.5 m；显示位置加回偏移，使拖动时仍对应同一规划高度。
+         marker_pose = Pose(position=Point(x=float(p.x), y=float(p.y), z=float(p.z + 0.5)))
+         marker_pose.orientation.w = 1.0
++        if self.waiting_for_goal:
++            self.make_marker('end_pos', self.end_pos + [0.0, 0.0, 0.5])
++            self.waiting_for_goal = False
+         self.server.setPose('end_pos', marker_pose)
+         self.server.applyChanges()
+         self.get_logger().info(f'已接收 RViz Goal Pose：map position={self.end_pos}；终点移动至少 1 cm 时规划并交给 EGO。')
+diff --git a/src/global_planner/ros/tomography_node.py b/src/global_planner/ros/tomography_node.py
+index d97db3b..bf98917 100644
+--- a/src/global_planner/ros/tomography_node.py
++++ b/src/global_planner/ros/tomography_node.py
+@@ -16,7 +16,16 @@ def main(args=None):
+         from pct_tomography.config import Config
+         from pct_tomography import config as scenes
+         from pct_tomography.tomography import Tomography
+-        scene_cfg = getattr(scenes, 'Scene' + scene)
++        from copy import copy
++        scene_cfg = getattr(scenes, 'Scene' + scene)()
++        scene_cfg.map = copy(scene_cfg.map)
++        scene_cfg.trav = copy(scene_cfg.trav)
++        for settings, keys in [(scene_cfg.map, ('ground_h', 'slice_dh', 'resolution')),
++                               (scene_cfg.trav, ('interval_min', 'interval_free', 'step_max', 'inflation'))]:
++            for key in keys:
++                value = node.declare_parameter(key, float(getattr(settings, key))).value
++                setattr(settings, key, value)
++                node.get_logger().info(f'{key} = {value:.3f}')
+         logging.basicConfig(level=logging.INFO)
+         node.get_logger().info(f'原 PCT CUDA 建图：{pcd_file} → {output}')
+         Tomography(Config(), scene_cfg, pcd_file, output)

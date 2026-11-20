@@ -1,0 +1,1 @@
+<library path="route_tool"><class name="office4_route/Draw Route" type="office4_route::DrawRoute" base_class_type="rviz_common::Tool"><description>Drag from A to B to save a route. Drawing never starts motion.</description></class></library>

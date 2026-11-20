@@ -1,0 +1,10 @@
+name: uniubi_velocity_link
+from_domain: 0
+to_domain: 42
+topics:
+  /cmd_vel:
+    type: geometry_msgs/msg/Twist
+    qos:
+      durability: volatile
+      reliability: reliable
+      depth: 1

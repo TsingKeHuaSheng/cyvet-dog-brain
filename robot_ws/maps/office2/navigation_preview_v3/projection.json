@@ -1,0 +1,21 @@
+{
+  "source": "/home/nvidia/robot_ws/maps/office2",
+  "floor_z": -0.45288,
+  "obstacle_z": [
+    -0.40288,
+    0.39712
+  ],
+  "resolution": 0.05,
+  "size": [
+    227,
+    294
+  ],
+  "patches": 87,
+  "occupied_cells": 1932,
+  "free_cells": 19987,
+  "unknown_cells": 44819,
+  "retained_rays": 27322,
+  "min_points_per_cell": 3,
+  "raw_obstacle_hits": 3822,
+  "limitations": "Approximate flat-ground height-band projection; no drop-off detection or traversability guarantee. Validate in RViz; not validated for motion."
+}

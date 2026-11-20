@@ -1,0 +1,214 @@
+========================================================
+  FAST-LIO 建图操作清单
+  机器狗二次开发 · Jetson Orin Nano
+  更新日期：2026-11-16
+========================================================
+
+【前提条件】
+
+1. Ubuntu 22.04 + ROS 2 Humble
+2. 雷达 MID-360S 用网线接 enP8p1s0（本机 192.168.1.50，雷达 192.168.1.194）
+3. systemd 已配置两个服务：
+     livox-lidar.service     开机自动启动雷达驱动（CustomMsg 模式）
+     livox-watchdog.service  看门狗，雷达掉电重连后自动重启驱动
+4. .bashrc 只 source 了 ROS 2（/opt/ros/humble）
+   雷达和 FAST-LIO 的工作空间需要手动 source
+
+【重要概念】
+
+  source  = 告诉当前终端"包在哪里"（只影响这个终端，不启动任何程序）
+  驱动    = 由 systemd 在后台运行，开机即起，与终端无关
+
+  所以：驱动不用管，但每个新终端用 ros2 命令前要先 source。
+
+========================================================
+ 第 0 步：确认雷达驱动正常
+========================================================
+
+source ~/ws_livox/install/setup.bash
+
+ros2 topic hz /livox/lidar        # 应约 10 Hz
+ros2 topic hz /livox/imu          # 应约 200 Hz
+
+# 如果没数据，看服务状态
+systemctl status livox-lidar
+journalctl -u livox-lidar -n 30
+
+========================================================
+ 第 1 步：启动建图
+========================================================
+
+source ~/ws_livox/install/setup.bash
+source ~/ws_slam/install/setup.bash
+
+ros2 launch pgo pgo_launch.py
+
+# 这一条命令同时启动三样东西：
+#   1. FAST-LIO  (lio_node)   里程计 + 建图
+#   2. 回环检测  (pgo_node)   闭合 + 位姿图优化
+#   3. RViz                   可视化（配置已内置）
+
+# 【注意】RViz 需要图形界面。
+#   - 在 Jetson 桌面终端运行：正常显示
+#   - 通过 SSH 登录运行：rviz 会报
+#         "qt.qpa.xcb: could not connect to display"
+#     然后退出。这不影响建图，lio_node 和 pgo_node 照常工作，
+#     只是看不到画面。
+
+========================================================
+ 第 2 步：验证建图在运行（另开一个终端）
+========================================================
+
+source ~/ws_livox/install/setup.bash
+source ~/ws_slam/install/setup.bash
+
+ros2 topic hz /fastlio2/lio_odom      # 应约 10 Hz
+ros2 topic hz /fastlio2/world_cloud   # 应约 10 Hz
+
+========================================================
+ 第 3 步：拿着雷达走一圈
+========================================================
+
+· 走闭合路线，最后回到起点 1 米以内
+  （回环检测半径配置为 loop_search_radius: 1.0）
+· 边走边建，不要站着原地转圈
+· 走慢一点，转弯时尤其慢
+· 回到起点后等几秒，RViz 里的地图会"啪"地跳一下
+  那表示回环优化完成
+
+========================================================
+ 第 4 步：保存地图（必须在建图还开着的时候做！）
+========================================================
+
+source ~/ws_livox/install/setup.bash
+source ~/ws_slam/install/setup.bash
+
+mkdir -p ~/robot_ws/maps/office4
+
+ros2 service call /pgo/save_maps interface/srv/SaveMaps \
+  "{file_path: '/home/nvidia/robot_ws/maps/office4', save_patches: true}"
+
+# 成功标志：
+#   response:
+#   interface.srv.SaveMaps_Response(success=True, message='SAVE SUCCESS!')
+
+# 两个关键点：
+#   1. 目录必须先存在，否则报 "IS NOT EXISTS"
+#   2. 必须在 Ctrl+C 之前保存，否则内存里的地图丢失
+
+# 产出文件：
+#   ~/robot_ws/maps/run1/map.pcd       完整地图
+#   ~/robot_ws/maps/run1/poses.txt     关键帧轨迹
+#   ~/robot_ws/maps/run1/patches/      子图
+
+========================================================
+ 第 5 步：结束建图
+========================================================
+
+回到第 1 步那个终端，按 Ctrl+C
+（lio_node、pgo_node、rviz2 会一起退出）
+
+========================================================
+ 第 6 步：查看已保存的地图
+========================================================
+
+## 终端 A：把 pcd 文件当作实时数据发出来
+
+source /opt/ros/humble/setup.bash
+
+ls -lh ~/robot_ws/maps/run1/map.pcd       # 先确认文件存在
+
+ros2 run pcl_ros pcd_to_pointcloud --ros-args \
+  -p file_name:=/home/nvidia/robot_ws/maps/run1/map.pcd \
+  -p tf_frame:=map
+
+# 看到这行说明发出去了，这个终端不要关：
+#   [INFO] [pcd_publisher]: Publishing data with 69145 points
+#          (x y z intensity) on topic /cloud_pcd in frame map.
+
+## 终端 B：打开 RViz 看
+
+source /opt/ros/humble/setup.bash
+
+rviz2
+
+# 然后在 RViz 窗口里做三步：
+#   ① 左上 Global Options → Fixed Frame 选 map
+#   ② 左下 Add → 选 PointCloud2 → 点 OK
+#   ③ 把它的 Topic 填 /cloud_pcd
+
+# 【注意】pcd_to_pointcloud 只发布一次，但数据是锁存的，
+#         RViz 后连上也能收到。
+
+========================================================
+ 第 7 步：检查地图质量（可选）
+========================================================
+
+python3 - <<'PY'
+import numpy as np
+S = np.array([[float(v) for v in l.split()[1:4]]
+              for l in open('/home/nvidia/robot_ws/maps/office4/poses.txt')])
+print("关键帧:", len(S))
+print("行程: %.2f m" % sum(np.linalg.norm(b-a) for a,b in zip(S, S[1:])))
+print("闭合误差: %.3f m (合格 < 0.3)" % np.linalg.norm(S[-1]-S[0]))
+delta = S[-1] - S[0]
+print("水平首尾间距：%.3f m" % np.linalg.norm(delta[:2]))
+print("高度变化：%+.3f m" % delta[2])
+PY
+
+# 参考值（2026-11-13 手持 3.5 m 测试）：
+#   关键帧 34，行程 3.50 m，闭合误差 0.058 m
+
+========================================================
+ 常见问题
+========================================================
+
+1. ros2 topic hz 报 "message type ... is invalid"
+   → 忘了 source ~/ws_livox/install/setup.bash
+
+2. save_maps 返回 "IS NOT EXISTS!"
+   → 目标目录没建，先 mkdir -p
+
+3. save_maps 报 "服务不存在"
+   → 建图已经 Ctrl+C 了，内存里的地图没了，只能重新建
+
+4. RViz 里一片空白
+   → Fixed Frame 没选 map，或者 Topic 没填 /cloud_pcd
+
+5. 地图是一团糊的球
+   → 雷达没移动就建图了，必须边走边建
+
+6. 回环不触发（地图首尾有一道缝）
+   → 没回到起点 1 米内，或者场地特征太少
+
+7. 启动时一直等不到雷达
+   → 检查雷达供电、网线、ping 192.168.1.194
+
+========================================================
+ 常用服务命令
+========================================================
+
+systemctl status livox-lidar          # 雷达驱动状态
+journalctl -u livox-lidar -f          # 雷达驱动实时日志
+sudo systemctl restart livox-lidar    # 手动重启雷达驱动
+sudo systemctl stop livox-lidar       # 停止雷达驱动
+
+systemctl status livox-watchdog       # 看门狗状态
+journalctl -t livox-watchdog -f       # 看门狗实时日志
+
+========================================================
+ 参数调整位置
+========================================================
+
+~/ws_slam/src/FASTLIO2_ROS2/fastlio2/config/lio.yaml    FAST-LIO 参数
+~/ws_slam/src/FASTLIO2_ROS2/pgo/config/pgo.yaml         回环参数
+
+常用参数：
+  lidar_max_range   30.0    超过 30 米的点丢弃（场地大改 50）
+  lidar_min_range   0.5     忽略 0.5 米内的点
+  map_resolution    0.3     地图点间距（越小越细越慢）
+  loop_search_radius 1.0    回到起点 1 米内触发回环
+
+修改后需要重启建图程序才生效（不能运行时改）。
+
+========================================================

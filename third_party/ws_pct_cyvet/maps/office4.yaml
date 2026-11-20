@@ -1,0 +1,5 @@
+# office4/map.pcd 使用的 map 坐标系，单位 m。
+# ground_h 取自 office4/navigation_preview/projection.json 的 floor_z 估计。
+ground_h: -0.52
+slice_dh: 0.60
+resolution: 0.10
