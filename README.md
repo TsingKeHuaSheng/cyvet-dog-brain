@@ -56,7 +56,8 @@ source ~/env_uniubi.sh      # 设 UNIUBI_SDK_ROOT / LD_LIBRARY_PATH / venv / IFA
 ├── robot_tools/                    ★ 自研：office4 业务层（1 MB，全部手写）
 │   ├── office4_drive/                drive.launch.py、bridge.bash、dog_env.bash、
 │   │                                 command_link.bash、base_odom.py、controller.yaml
-│   ├── office4_route/                取权/释放/启动脚本
+│   ├── office4_route/                取权/释放/启动脚本（软链到 ws_route 的实现）
+│   ├── lib/dog_map.bash              ★ 地图解析唯一入口（所有 bash 共用，见 docs/）
 │   ├── office4_live_obstacles/       高度滤波避障
 │   ├── navigation_preview/           栅格预览、planner.yaml
 │   ├── chair_preview/                椅子场景预览
@@ -92,6 +93,21 @@ source ~/env_uniubi.sh      # 设 UNIUBI_SDK_ROOT / LD_LIBRARY_PATH / venv / IFA
 ├── dog_paths/                        采集到的航点 CSV
 └── third_party/ws_pct_cyvet/         ws_pct（gitee 三方）的本地定制补丁与配置
 ```
+
+### 2.1 地图是怎么选的（换图不影响任何脚本）
+
+地图名只存在一个地方：`~/.config/dogroute/selected-map`，由 `dogroute use <名字>` 写入。
+循线 / 自定位 / 画线三个 bash 和 `office4.launch.py` 都通过
+`~/robot_tools/lib/dog_map.bash` 解析（`$DOG_ROUTE_MAP` → 状态文件 → 兜底 `office4`），
+**脚本里不出现任何地图名**。
+
+```bash
+dogroute use plaza01     # 之后 locate / draw / walk 全部自动跟着 plaza01
+dogroute status          # 当前图、文件齐不齐、各服务跑的是哪张图
+eval "$(dogroute env)"   # 只在当前终端切图，不动全局选择
+```
+
+完整约定、变量表、新增功能模板：[docs/地图与脚本解耦约定.md](docs/地图与脚本解耦约定.md)
 
 ---
 
@@ -163,7 +179,8 @@ source ~/ros2_ws/install/setup.bash
 | 分支 | `main` 只放能跑的版本；开发走 `feat/xxx`、`fix/xxx` |
 | 提交信息 | 中文可，前缀 `feat:` / `fix:` / `docs:` / `chore:` |
 | 二进制 | 地图 `.pcd` 可以进（单个 < 5 MB）；录包 `.bag/.mcap`、权重 `.pt/.onnx` 不进 |
-| 现场参数 | 狗的 IP / SN 写在 `robot_tools/office4_drive/dog_env.bash` 与 `motion_bridge.yaml`，换场地只改这两处 |
+| 地图 | **换场地只执行 `dogroute use <地图名>`**，脚本里不含任何地图名；详见 `docs/地图与脚本解耦约定.md` |
+| 现场参数 | 狗的 IP / SN 写在 `robot_tools/uniubi_motion/dog_env.bash` 与 `motion_bridge.yaml`，换狗只改这两处 |
 | 机密 | WiFi 密码、SSH 私钥、GitHub Token 一律不入库（已在 `.gitignore` §4 兜住） |
 | 换行 | 一律 LF（`.gitattributes` 已强制），Windows 上编辑 `.sh` 记得别存成 CRLF |
 

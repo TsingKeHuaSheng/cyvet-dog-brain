@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
+# 循线行走：地图来自 dogroute use 的选择，本脚本不含任何地图名。
 set -e
-source "$(dirname "$(realpath "$0")")/session_guard.bash"
 here=$(dirname "$(realpath "$0")")
-test -s "$HOME/robot_ws/maps/${DOG_ROUTE_MAP:-office4}/routes/hand_drawn.json" || { echo 'Draw and save a route in RViz first.'; exit 1; }
+source "$HOME/robot_tools/lib/dog_map.bash"
+source "$here/session_guard.bash"
+test -s "$DOG_ROUTE_JSON" || { echo "还没有为 $DOG_ROUTE_MAP 画线：先 dogroute draw，在 RViz 里画完松手保存。" >&2; exit 1; }
 systemctl --user start uniubi-motion-bridge
 (
     source ~/robot_tools/uniubi_motion/dog_env.bash

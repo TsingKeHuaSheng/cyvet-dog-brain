@@ -10,6 +10,27 @@ from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
+LEGACY = 'office4'
+
+
+def selected_map():
+    """Map in force: $DOG_ROUTE_MAP → ~/.config/dogroute/selected-map → legacy office4.
+
+    Kept in sync with ws_route/src/office4_route/scripts/map_site.py (the single
+    source of truth for Python); this launch file cannot import it from the
+    install space, so the three-line rule is repeated here on purpose.
+    """
+    name = os.environ.get('DOG_ROUTE_MAP', '').strip()
+    if name:
+        return name
+    state = Path.home() / '.config/dogroute/selected-map'
+    if state.is_file():
+        saved = state.read_text().strip()
+        if saved:
+            return saved
+    legacy = Path.home() / 'robot_ws/maps' / LEGACY
+    return legacy.name if legacy.is_dir() else None
+
 
 def grid_view(template, name):
     view = yaml.safe_load(template.read_text())
@@ -38,10 +59,13 @@ def generate_launch_description():
     floor_args = []
     servers = ['controller_server']
     nodes = []
-    name = os.environ.get('DOG_ROUTE_MAP')
+    name = selected_map()
     if name:
         directory = Path.home() / 'robot_ws/maps' / name / 'nav2'
-        floor = float(json.loads((directory / 'projection.json').read_text())['floor_z'])
+        projection = directory / 'projection.json'
+        if not (projection.is_file() and (directory / 'map.yaml').is_file()):
+            raise RuntimeError(f'{name} 还没有二维栅格（{directory}）：先执行 dogroute grid。')
+        floor = float(json.loads(projection.read_text())['floor_z'])
         floor_args = ['-p', f'floor_z:={floor}']
         rviz = grid_view(rviz, name)
         servers.insert(0, 'map_server')

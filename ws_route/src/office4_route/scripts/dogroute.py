@@ -12,7 +12,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from map_site import MAPS, floor_height, map_name, pcd_digest
+from map_site import LEGACY, MAPS, floor_height, map_name, pcd_digest, saved_name, shell_exports
 
 HOME_DIR = Path.home()
 TOOLS = HOME_DIR / 'robot_tools'
@@ -31,6 +31,11 @@ def running(unit):
 def service_map(unit):
     env = subprocess.check_output(['systemctl', '--user', 'show', unit, '-p', 'Environment', '--value'], text=True)
     return next((v.split('=', 1)[1] for v in shlex.split(env) if v.startswith('DOG_ROUTE_MAP=')), None)
+
+
+def unit_map(unit):
+    """Map a running unit was started with; units started before this change recorded none."""
+    return service_map(unit) or LEGACY
 
 
 def stop(unit):
@@ -80,7 +85,7 @@ def check_no_external_slam():
 
 def mapping(directory):
     if running(MAPPER):
-        if service_map(MAPPER) == directory.name:
+        if unit_map(MAPPER) == directory.name:
             print(f'正在采集 {directory.name}，走完后执行 dogroute save。')
             return
         raise ValueError('已有另一场建图，请先保存。')
@@ -94,7 +99,7 @@ def mapping(directory):
 
 def save(directory):
     from interface.srv import SaveMaps
-    if not running(MAPPER) or service_map(MAPPER) != directory.name:
+    if not running(MAPPER) or unit_map(MAPPER) != directory.name:
         raise ValueError('没有以当前地图名启动的建图任务。')
     map_input_empty(directory)
     MAPS.mkdir(parents=True, exist_ok=True)
@@ -132,7 +137,7 @@ def grid(directory, floor):
                 all((target / f).is_file() for f in ('map.pgm', 'map.yaml'))):
             print(f'栅格已就绪：{target}/map.yaml，地面 z={floor:g} m')
             return
-        if running(DRAW) and service_map(DRAW) == directory.name:
+        if running(DRAW) and unit_map(DRAW) == directory.name:
             raise ValueError('关闭当前地图的循线服务后再更新地面高度：dogroute stop')
     store.mkdir(exist_ok=True)
     output = Path(tempfile.mkdtemp(prefix='grid-', dir=store))
@@ -160,7 +165,7 @@ def locate(directory):
     if not pcd.is_file():
         raise ValueError(f'没有找到 {pcd}')
     stop(DRAW)
-    if running(LOCALIZER) and service_map(LOCALIZER) != directory.name:
+    if running(LOCALIZER) and unit_map(LOCALIZER) != directory.name:
         stop(LOCALIZER)
     if not running(LOCALIZER):
         check_no_external_slam()
@@ -178,14 +183,14 @@ def locate(directory):
 
 
 def check_localizer(name):
-    if not running(LOCALIZER) or (service_map(LOCALIZER) or 'office4') != name:
+    if not running(LOCALIZER) or unit_map(LOCALIZER) != name:
         raise ValueError(f'请先在 {name} 的建图起点执行 dogroute locate。')
 
 
 def draw(directory):
     check_localizer(directory.name)
     grid(directory, None)
-    if running(DRAW) and service_map(DRAW) == directory.name:
+    if running(DRAW) and unit_map(DRAW) == directory.name:
         if subprocess.run(['pgrep', '-f', r'^\S*/rviz2 .*__node:=office4_draw'], stdout=subprocess.DEVNULL).returncode == 0:
             print(f'{directory.name} 画线窗口已打开。')
             return
@@ -205,6 +210,7 @@ def main():
     parser = argparse.ArgumentParser(description='建图、定位、画线和循线；地图名仅在 use 时填写。')
     subs = parser.add_subparsers(dest='cmd', required=True)
     subs.add_parser('use', help='选择地图（跨终端记住）').add_argument('name')
+    subs.add_parser('env', help='打印当前地图的环境变量（可 eval 使用）')
     subs.add_parser('grid', help='生成二维栅格').add_argument('--floor-z', type=float, metavar='METRES')
     subs.add_parser('walk', help='执行已保存路线').add_argument('--resume', action='store_true')
     for action, text in [('mapping','开始新建图'), ('save','保存并结束本次建图'), ('locate','在原起点定位'),
@@ -213,16 +219,31 @@ def main():
         subs.add_parser(action, help=text)
     args = parser.parse_args()
     STATE.mkdir(parents=True, exist_ok=True)
-    name = map_name(SELECTED.read_text().strip()) if SELECTED.exists() else None
+    name = saved_name()
     if args.cmd == 'status':
         print('所选地图：', name or '尚未选择；执行 dogroute use 地图名')
+        if name:
+            directory = MAPS / name
+            marks = [(tag, (directory / rel).is_file()) for tag, rel in
+                     (('map.pcd', 'map.pcd'), ('nav2/map.yaml', 'nav2/map.yaml'),
+                      ('routes/hand_drawn.json', 'routes/hand_drawn.json'))]
+            print('地图目录：', directory)
+            print('文件情况：', '  '.join(f'{tag}={"有" if ok else "缺"}' for tag, ok in marks))
         for unit in (MAPPER, LOCALIZER, DRAW):
-            print(unit, (service_map(unit) or 'office4（原入口）') if running(unit) else '已停止')
+            if running(unit):
+                print(f'{unit:<20} 运行中，地图={unit_map(unit)}' +
+                      ('' if service_map(unit) else '（旧入口启动，未记录地图）'))
+            else:
+                print(f'{unit:<20} 已停止')
+        return
+    if args.cmd == 'env':
+        # 供手工终端使用：eval "$(dogroute env)"
+        print(shell_exports(name))
         return
     with (STATE / 'command.lock').open('a') as command_lock, open('/tmp/office4-follow.lock','a') as follow_lock:
         fcntl.flock(command_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         # Re-read under the lock so a concurrent selection cannot change this command's map.
-        name = map_name(SELECTED.read_text().strip()) if SELECTED.exists() else None
+        name = saved_name()
         if args.cmd != 'walk':
             fcntl.flock(follow_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         if args.cmd == 'use':
@@ -230,12 +251,14 @@ def main():
             if running(MAPPER) and service_map(MAPPER) != name:
                 raise ValueError('先用 dogroute save 保存当前建图，再切地图。')
             for unit in (DRAW, LOCALIZER):
-                if running(unit) and (service_map(unit) or 'office4') != name:
+                if running(unit) and unit_map(unit) != name:
                     stop(unit)
             temp = SELECTED.with_suffix('.tmp')
             temp.write_text(name + '\n')
             os.replace(temp, SELECTED)
             print(f'已选择 {name}：{MAPS / name}')
+            if not (MAPS / name).is_dir():
+                print('这张图还没有目录，新建请接着执行 dogroute mapping。')
             return
         if args.cmd == 'stop':
             stop(DRAW)
@@ -252,7 +275,7 @@ def main():
             raise ValueError('建图正在运行；先执行 dogroute save。')
         if args.cmd == 'walk':
             check_localizer(name)
-            if not running(DRAW) or service_map(DRAW) != name:
+            if not running(DRAW) or unit_map(DRAW) != name:
                 raise ValueError(f'请先运行 dogroute draw，为 {name} 打开画线界面并保存路线。')
             os.environ['DOG_ROUTE_MAP'] = name
             os.set_inheritable(command_lock.fileno(), True)

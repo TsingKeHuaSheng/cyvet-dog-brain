@@ -13,7 +13,9 @@
 #       每次 relocalize 调用都会把 localize_success 清为 false!
 # ============================================================
 set -u
-MAP=${1:-/home/nvidia/robot_ws/maps/run3/map.pcd}
+source "$HOME/robot_tools/lib/dog_map.bash" || exit 1
+MAP=${1:-${DOG_MAP_PCD:-}}
+[ -n "$MAP" ] || { echo "没有选定地图：先 dogroute use <名字>" >&2; exit 1; }
 X=${2:-0.0}
 Y=${3:-0.0}
 Z=${4:-0.0}

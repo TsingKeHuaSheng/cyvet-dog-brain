@@ -4,7 +4,8 @@
 set -e
 source /opt/ros/humble/setup.bash
 PREVIEW_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-MAP_YAML="${1:-/home/nvidia/robot_ws/maps/office2/navigation_preview_v2/map.yaml}"
+source "$HOME/robot_tools/lib/dog_map.bash" || exit 1
+MAP_YAML="${1:-$DOG_MAP_DIR/navigation_preview/map.yaml}"
 
 if [ ! -f "$MAP_YAML" ]; then
     echo "❌ 找不到地图: $MAP_YAML"
