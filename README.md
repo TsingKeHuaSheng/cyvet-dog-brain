@@ -104,7 +104,7 @@ source ~/env_uniubi.sh      # 设 UNIUBI_SDK_ROOT / LD_LIBRARY_PATH / venv / IFA
 ```bash
 dogroute use plaza01     # 之后 locate / draw / walk 全部自动跟着 plaza01
 dogroute status          # 当前图、文件齐不齐、各服务跑的是哪张图
-eval "$(dogroute env)"   # 只在当前终端切图，不动全局选择
+eval "$(dogroute env)"   # 把当前地图的变量导进这个终端（不动全局选择）
 ```
 
 完整约定、变量表、新增功能模板：[docs/地图与脚本解耦约定.md](docs/地图与脚本解耦约定.md)
